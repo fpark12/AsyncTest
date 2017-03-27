@@ -1,7 +1,9 @@
 SET( DEFINE
 )
 SET( INCLUDE
+sqlpp11
 )
 SET( LINK
+sqlpp11
 )
 create_project(STATIC DEFINE INCLUDE LINK)

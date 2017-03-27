@@ -11,4 +11,4 @@ co2
 libmariadb
 hinnantdate
 )
-create_project(STATIC "${DEFINE}" "${INCLUDE}" "${LINK}")
+create_project(STATIC DEFINE INCLUDE LINK)
