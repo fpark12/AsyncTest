@@ -88,8 +88,8 @@ namespace sqlpp
 			: _io_service(io_service, thread_count)
 		{}
 
-		template<typename Connection, typename Connection_config, typename Query, typename Bind>
-		void post(connection_pool<Connection, Connection_config>& connection_pool, Query query, Bind callback)
+		template<typename Connection, typename Connection_config, typename Reconnect_policy, typename Query, typename Bind>
+		void post(connection_pool<Connection, Connection_config, Reconnect_policy>& connection_pool, Query query, Bind callback)
 		{
 			_io_service._impl.post(
 				[&]()

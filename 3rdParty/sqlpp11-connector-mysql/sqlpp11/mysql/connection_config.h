@@ -33,6 +33,7 @@ namespace sqlpp
 {
   namespace mysql
   {
+    struct connection;
     struct connection_config
     {
       std::string host = "localhost";

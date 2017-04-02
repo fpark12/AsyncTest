@@ -25,7 +25,13 @@ int main()
 	config->database = "sqlpp_mysql";
 	config->debug    = true;
 
-	sqlpp::connection_pool<sqlpp::mysql::connection, sqlpp::mysql::connection_config> pool(config, 4);
+	sqlpp::connection_pool<sqlpp::mysql::connection_config, sqlpp::mysql::connection,
+		sqlpp::reconnect_policy::auto_reconnect> pool(config, 4, sqlpp::reconnect_policy::auto_reconnect());
+	sqlpp::connection_pool<sqlpp::mysql::connection_config> pool1(config, 4);
+	pool1.get_connection();
+	auto pool2 = sqlpp::make_connection_pool<sqlpp::mysql::connection_config, sqlpp::mysql::connection,
+		sqlpp::reconnect_policy::auto_reconnect>(config, 4);
+
 	auto conn1 = pool.get_connection();
 	auto conn2 = pool.get_connection();
 	auto conn3 = pool.get_connection();

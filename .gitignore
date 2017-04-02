@@ -150,3 +150,5 @@ Binaries/
 # Shortcut
 # *.lnk
 # Binaries/libfbxsdk.dll
+/CMake/
+/Purify/
