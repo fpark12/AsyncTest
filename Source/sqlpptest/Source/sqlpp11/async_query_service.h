@@ -38,27 +38,37 @@
 #define SQLPP_ASIO boost::asio
 #endif
 
-#include <mutex>
 #include <vector>
 #include <iostream>
 #include <thread>
+#include <chrono>
 #include <sqlpp11/exception.h>
 #include <sqlpp11/connection_pool.h>
 
 namespace sqlpp
 {
+	using namespace std::chrono_literals;
 	struct async_query_service
 	{
 	private:
-		std::mutex _test_mutex;
 		struct async_io_service
 		{
 			std::vector<std::thread> io_threads;
+			std::unique_ptr<SQLPP_ASIO::steady_timer> timer;
 			SQLPP_ASIO::io_service& _impl;
+
+			void timer_loop()
+			{
+				timer->expires_from_now(std::chrono::seconds(10));
+				timer->async_wait(std::bind(&async_io_service::timer_loop, this));
+			}
 
 			async_io_service(SQLPP_ASIO::io_service& io_service, unsigned int thread_count)
 				: _impl(io_service)
 			{
+				timer = std::make_unique<SQLPP_ASIO::steady_timer>(_impl);
+				timer_loop(); // Keeps the io_service threads from returning
+
 				for (unsigned i = 0; i < thread_count; i++)
 				{
 					try
@@ -85,38 +95,18 @@ namespace sqlpp
 
 	public:
 		async_query_service(SQLPP_ASIO::io_service& io_service, unsigned int thread_count)
-			: _io_service(io_service, thread_count)
-		{}
+			: _io_service(io_service, thread_count) {}
 
-		template<typename Connection, typename Connection_config, typename Reconnect_policy, typename Query, typename Bind>
-		void post(connection_pool<Connection, Connection_config, Reconnect_policy>& connection_pool, Query query, Bind callback)
+		template<typename Connection, typename Connection_config, typename Connection_validator, typename Query, typename Lambda>
+		void async_query(connection_pool<Connection, Connection_config, Connection_validator>& connection_pool, Query query, Lambda callback)
 		{
 			_io_service._impl.post(
 				[&]()
 			{
 				auto async_connection = connection_pool.get_connection();
-				async_connection(query);
-				_io_service._impl.post(callback);
+				callback(std::move(async_connection(query)));
 			}
 			);
-		}
-
-		void FuncA(int i)
-		{
-			std::lock_guard<std::mutex> lock(_test_mutex);
-			std::thread::id id = std::this_thread::get_id();
-			std::stringstream id_ss;
-			id._To_text(id_ss);
-			std::cerr << "FuncA called by thread: " << id_ss.str() << " " << i << std::endl;
-		}
-
-		void FuncB(int i)
-		{
-			std::lock_guard<std::mutex> lock(_test_mutex);
-			std::thread::id id = std::this_thread::get_id();
-			std::stringstream id_ss;
-			id._To_text(id_ss);
-			std::cerr << "FuncB called by thread: " << id_ss.str() << " " << i << std::endl;
 		}
 	};
 }
