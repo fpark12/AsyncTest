@@ -53,9 +53,10 @@ int main()
 	std::cerr << "Current thread: " << id_text.str() << std::endl;
 
 	asio::io_service io_service;
-	sqlpp::async_query_service test(io_service, 4);
+	sqlpp::async_query_service<asio::io_service> async_query_service(io_service, 4);
 	const auto Users = SQLTable::Users{};
 	auto query = select(all_of(Users)).from(Users).unconditionally();
+	auto query2 = select(all_of(Users)).from(Users).unconditionally();
 
 	conn1.execute(R"(DROP TABLE IF EXISTS Users)");
 	conn1.execute(R"(CREATE TABLE Users (
@@ -103,8 +104,6 @@ int main()
 			std::string AccountName = row.AccountName;   // string-like fields are implicitly convertible to string
 	}
 
-	auto lambda = [](int a) { return 0; };
-
 	std::packaged_task<int()> task([]() { return 7; }); // wrap the function
 	std::packaged_task<decltype(conn1(query))()> task2([&]() { return conn1(query); }); // wrap the function
 	std::future<int> f1 = task.get_future();
@@ -121,18 +120,59 @@ int main()
 	);
 	//*/
 
-	auto callback = [&](auto result)
+
+	// ok
+	auto callback = [&](auto error, auto result, auto conn)
+	{
+		if (error)
+		{
+			std::cerr << error.what() << std::endl;
+		}
+
+		try
+		{
+			for (const auto& row : result)
+			{
+				if (row.AccountName.is_null())
+					std::cerr << "AccountName is null" << std::endl;
+				else
+					std::string AccountName = row.AccountName;
+			}
+		}
+		catch (sqlpp::exception e)
+		{
+			// result processing error
+		}
+	};
+
+	// ok
+	auto callback2 = [&](auto error, auto result)
 	{
 		for (const auto& row : result)
 		{
 			if (row.AccountName.is_null())
 				std::cerr << "AccountName is null" << std::endl;
 			else
-				std::string AccountName = row.AccountName;   // string-like fields are implicitly convertible to string
+				std::string AccountName = row.AccountName;
 		}
 	};
-	test.async_query(pool, query, callback);
-	test.async_query(pool, query, [&](auto result)
+
+	// ok
+	auto callback3 = [&](auto error)
+	{
+	};
+
+	// ok
+	auto callback4 = [&]()
+	{
+	};
+
+	async_query_service.async_query(pool, query, callback);
+	async_query_service.async_query(pool, query, callback2);
+	async_query_service.async_query(pool, query, callback3);
+	async_query_service.async_query(pool, query, callback4);
+	/*
+	async_query_service.async_query(pool, query, [&](auto result, auto conn)
 	{
 		for (const auto& row : result)
 		{
@@ -142,7 +182,8 @@ int main()
 				std::string AccountName = row.AccountName;   // string-like fields are implicitly convertible to string
 		}
 	});
-	//test.async_query(pool, query, std::bind(&sqlpp::async_query_service::FuncB, &test, 3));
+	*/
+	//async_query_service.async_query(pool, query, std::bind(&sqlpp::async_query_service::FuncB, &async_query_service, 3));
 
 	using namespace std::chrono_literals;
 	std::this_thread::sleep_for(10s);

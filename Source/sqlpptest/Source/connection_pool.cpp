@@ -22,18 +22,18 @@ SQLConnectionPool::SQLConnectionPool(SQLConnectionPoolInfo& info) :
 
 }
 
-Status SQLConnectionPool::AddPreparedStatementString(uint32 statementStringIndex, char * statementString)
+error SQLConnectionPool::AddPreparedStatementString(uint32 statementStringIndex, char * statementString)
 {
 	//TODO: Error checking
 	PreparedStatementStrings[statementStringIndex] = statementString;
-	return Status::OK;
+	return error::ok;
 }
 
-Status SQLConnectionPool::SpawnConnections()
+error SQLConnectionPool::SpawnConnections()
 {
 	if (ConnectionPoolInfo.ConnectionCount <= 0)
 	{
-		return Status::OK;
+		return error::ok;
 	}
 	if (ActiveConnectionCount != ConnectionPoolInfo.ConnectionCount)
 	{
@@ -41,22 +41,22 @@ Status SQLConnectionPool::SpawnConnections()
 		for (int i = ActiveConnectionCount; i < ConnectionPoolInfo.ConnectionCount; ++i)
 		{
 			Connections.emplace_back(SQLConnection(ConnectionPoolInfo));
-			if (Status::OK != Connections[i].Connect())
+			if (error::ok != Connections[i].Connect())
 			{
 				//TODO Error handling
-				return Status::FAILED;
+				return error::failed;
 			}
 		
-			if (Status::OK != Connections[i].InitPreparedStatements(PreparedStatementStrings))
+			if (error::ok != Connections[i].InitPreparedStatements(PreparedStatementStrings))
 			{
 				//TODO Error handling
-				return Status::FAILED;
+				return error::failed;
 			}
 		}
 		ActiveConnectionCount = ConnectionPoolInfo.ConnectionCount;
 	}
 	
-	return Status::OK;
+	return error::ok;
 }
 
 SQLConnection* SQLConnectionPool::GetAvaliableSQLConnection()
