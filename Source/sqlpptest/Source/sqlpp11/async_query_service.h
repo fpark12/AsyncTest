@@ -53,7 +53,8 @@ namespace sqlpp
 {
 	struct error : std::system_error
 	{
-		enum {
+		enum
+		{
 			ok = 0,
 			failed,
 			unknown,
