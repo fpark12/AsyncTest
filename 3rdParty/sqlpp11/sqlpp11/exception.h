@@ -27,18 +27,62 @@
 #ifndef SQLPP_EXCEPTION_H
 #define SQLPP_EXCEPTION_H
 
-#include <stdexcept>
+#include <system_error>
 
 namespace sqlpp
 {
-  class exception : public std::runtime_error
+  class exception : public std::system_error
   {
   public:
-    exception(const std::string& what_arg) : std::runtime_error(what_arg)
+    enum
+    {
+      ok = 0,
+      failed,
+      unknown,
+      connection_error,
+      query_error
+    };
+
+    exception() : std::system_error(sqlpp::exception::ok, std::generic_category())
     {
     }
-    exception(const char* what_arg) : std::runtime_error(what_arg)
+    exception(int code) : std::system_error(code, std::generic_category())
     {
+    }
+    exception(int code, const std::string& what_arg) : std::system_error(code, std::generic_category(), what_arg)
+    {
+    }
+    exception(int code, const char* what_arg) : std::system_error(code, std::generic_category(), what_arg)
+    {
+    }
+    exception(const std::string& what_arg) : std::system_error(sqlpp::exception::unknown, std::generic_category(), what_arg)
+    {
+    }
+    exception(const char* what_arg) : std::system_error(sqlpp::exception::unknown, std::generic_category(), what_arg)
+    {
+    }
+    exception(const exception& other) : std::system_error(other)
+    {
+    }
+
+    operator bool() const
+    {
+      return code().value() != 0;
+    }
+
+    bool operator!() const
+    {
+      return code().value() == 0;
+    }
+
+    bool operator==(const exception& other) const
+    {
+      return code().value() == other.code().value();
+    }
+
+    bool operator!=(const exception& other) const
+    {
+      return !operator==(other);
     }
   };
 }
