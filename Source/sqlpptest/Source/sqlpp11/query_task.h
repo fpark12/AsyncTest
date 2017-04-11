@@ -24,20 +24,10 @@
 * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-/*
 #pragma once
 
-#ifndef SQLPP_ASYNC_QUERY_SERVICE_H
-#define SQLPP_ASYNC_QUERY_SERVICE_H
-
-#define SQLPP_ASIO_STANDALONE
-#ifdef SQLPP_ASIO_STANDALONE
-#define SQLPP_ASIO asio
-#include <asio.hpp>
-#else
-#include <boost/asio.hpp>
-#define SQLPP_ASIO boost::asio
-#endif
+#ifndef SQLPP_QUERY_TASK_H
+#define SQLPP_QUERY_TASK_H
 
 #include <vector>
 #include <iostream>
@@ -47,48 +37,12 @@
 #include <type_traits>
 #include <system_error>
 
-#include <sqlpp11/exception.h>
 #include <sqlpp11/error.h>
+#include <sqlpp11/exception.h>
 #include <sqlpp11/connection_pool.h>
-#include <sqlpp11/query_task.h>
 
 namespace sqlpp
 {
-	struct error : std::system_error
-	{
-		enum
-		{
-			ok = 0,
-			failed,
-			unknown,
-			connection_error,
-			query_error
-		};
-
-		error() : std::system_error(sqlpp::error::ok, std::generic_category()) {}
-		error(int code) : std::system_error(code, std::generic_category()) {}
-		error(int code, std::string message) : std::system_error(code, std::generic_category(), message) {}
-		error(const error& other) : std::system_error(other) {}
-
-		operator bool() const
-		{
-			return code().value() != 0;
-		}
-
-		bool operator!() const
-		{
-			return code().value() == 0;
-		}
-
-		bool operator==(const error& other) const
-		{
-			return code().value() == other.code().value();
-
-		}
-		bool operator!=(const error& other) const {
-			return !operator==(other);
-		}
-	};
 
 	template<typename Connection_pool, typename Query, typename Lambda>
 	class query_task
@@ -136,7 +90,7 @@ namespace sqlpp
 			!is_callable<Lambda, sqlpp::error>::value &&
 			!is_callable<Lambda, sqlpp::error, Result>::value &&
 			!is_callable<Lambda, sqlpp::error, Result, Pool_connection>::value, int>::type = 0>
-		void impl(sqlpp::error error, Pool_connection connection, Result result, Lambda& callback)
+			void impl(sqlpp::error error, Pool_connection connection, Result result, Lambda& callback)
 		{
 			static_assert(false, "Callback signature is incompatible. Refer to the wiki for further instructions.");
 		}
@@ -169,92 +123,18 @@ namespace sqlpp
 		Query query;
 		Lambda callback;
 	};
-	
+
 	template<typename Connection_pool, typename Query, typename Lambda>
 	query_task<Connection_pool, Query, Lambda> make_query_task(Connection_pool& pool, Query& query, Lambda& lambda)
 	{
 		return query_task<Connection_pool, Query, Lambda>(pool, query, lambda);
 	}
 
-	using namespace std::chrono_literals;
-	struct asio_query_service
+	template<typename Connection_pool, typename Query, typename Lambda>
+	void async(Connection_pool& pool, Query& query, Lambda& callback)
 	{
-		std::vector<std::thread> io_threads;
-		std::unique_ptr<SQLPP_ASIO::steady_timer> timer;
-		SQLPP_ASIO::io_service& _impl;
-		bool is_initialized = false;
-
-		void timer_loop()
-		{
-			timer->expires_from_now(std::chrono::seconds(10));
-			timer->async_wait(std::bind(&asio_query_service::timer_loop, this));
-		}
-
-		asio_query_service(SQLPP_ASIO::io_service& io_service) : _impl(io_service), is_initialized(true) {}
-		asio_query_service(SQLPP_ASIO::io_service& io_service, unsigned int thread_count) : _impl(io_service), is_initialized(true)
-		{
-			timer = std::make_unique<SQLPP_ASIO::steady_timer>(_impl);
-			timer_loop(); // Keeps the io_service threads from returning
-
-			for (unsigned i = 0; i < thread_count; i++)
-			{
-				try
-				{
-					io_threads.push_back(std::move(std::thread([&] {io_service.run(); })));
-				}
-				catch (std::exception e)
-				{
-					throw sqlpp::exception("Async io service failed to create io threads.");
-				}
-			}
-		}
-
-		~asio_query_service()
-		{
-			_impl.stop();
-			for (auto& thread : io_threads)
-			{
-				thread.join();
-			}
-		}
-
-		template<typename Connection_pool, typename Query, typename Lambda>
-		void async_query(Connection_pool& pool, Query& query, Lambda& callback)
-		{
-			if (!is_initialized)
-			{
-				throw sqlpp::exception("async_query_service not yet initialized.");
-			}
-			_impl.post(query_task<Connection_pool, Query, Lambda>(pool, query, callback));
-		}
-
-	};
-
-	template <typename Io_service>
-	struct async_query_service
-	{
-	private:
-		// todo: support for other I/O libraries
-		asio_query_service _io_service;
-
-	public:
-		async_query_service(Io_service& io_service, unsigned int thread_count)
-			: _io_service(io_service, thread_count) {}
-
-		template<typename Connection, typename Connection_config, typename Connection_validator, typename Query, typename Lambda>
-		void async_query(connection_pool<Connection_config, Connection_validator, Connection>& pool, Query& query, Lambda& callback)
-		{
-			try
-			{
-				_io_service.async_query(pool, query, callback);
-			}
-			catch (sqlpp::exception e)
-			{
-				throw e;
-			}
-		}
-	};
+		std::async(std::launch::async, std::ref(pool), query, std::ref(callback));
+	}
 }
 
 #endif
-*/

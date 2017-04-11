@@ -13,6 +13,8 @@
 #include "sqlpp11/mysql/connection.h"
 #include "connection_handle.h"
 #include "connection_pool.h"
+#include "thread_pool.h"
+#include "query_task.h"
 
 #include "async_query_service.h"
 #include "SampleTable.h"
@@ -53,7 +55,7 @@ int main()
 	std::cerr << "Current thread: " << id_text.str() << std::endl;
 
 	asio::io_service io_service;
-	sqlpp::async_query_service<asio::io_service> async_query_service(io_service, 4);
+	//sqlpp::async_query_service<asio::io_service> async_query_service(io_service, 4);
 	const auto Users = SQLTable::Users{};
 	auto query = select(all_of(Users)).from(Users).unconditionally();
 	auto query2 = select(all_of(Users)).from(Users).unconditionally();
@@ -104,10 +106,12 @@ int main()
 			std::string AccountName = row.AccountName;   // string-like fields are implicitly convertible to string
 	}
 
+	/*
 	std::packaged_task<int()> task([]() { return 7; }); // wrap the function
 	std::packaged_task<decltype(conn1(query))()> task2([&]() { return conn1(query); }); // wrap the function
 	std::future<int> f1 = task.get_future();
 	std::future<decltype(conn1(query))> f2 = task2.get_future();
+	*/
 	/*
 	_io_service._impl.async_query([&]()
 	{
@@ -167,10 +171,24 @@ int main()
 	{
 	};
 
+	using Connection_pool = decltype(pool);
+	using Query = decltype(query);
+	using Lambda = decltype(callback);
+	auto qp = sqlpp::query_task<Connection_pool, Query, Lambda> (pool, query, callback);
+	std::async(std::launch::async, qp);
+
+	sqlpp::async(pool, query, callback2);
+
+	thread_pool tpool(4);
+	auto task = sqlpp::make_query_task(pool, query, callback);
+	tpool.enqueue(task);
+
+	/*
 	async_query_service.async_query(pool, query, callback);
 	async_query_service.async_query(pool, query, callback2);
 	async_query_service.async_query(pool, query, callback3);
 	async_query_service.async_query(pool, query, callback4);
+	*/
 	/*
 	async_query_service.async_query(pool, query, [&](auto result, auto conn)
 	{
