@@ -178,9 +178,9 @@ int main()
 	auto qp = sqlpp::query_task<Connection_pool, Query, Lambda> (pool, query, callback);
 	std::async(std::launch::async, qp);
 	pool(query);
-	auto s1 = dynamic_select(conn1);
-	auto s2 = dynamic_select(conn);
-	auto s3 = dynamic_select(pool);
+	auto s1 = dynamic_select(conn);
+	auto s2 = dynamic_select(conn1);
+	//auto s3 = dynamic_select(pool);
 	//auto s4 = dynamic_select(query);
 
 	sqlpp::async(pool, query, callback2);
