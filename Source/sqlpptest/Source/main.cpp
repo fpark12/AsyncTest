@@ -38,6 +38,7 @@ int main()
 	// For connectors that are not up to date:
 	auto pool6 = sqlpp::make_connection_pool<sqlpp::mysql::connection_config, sqlpp::connection_validator::automatic, sqlpp::mysql::connection>(config, 4);
 
+	auto conn = sqlpp::mysql::connection(config);
 	auto conn1 = pool.get_connection();
 	auto conn2 = pool.get_connection();
 	auto conn3 = pool.get_connection();
@@ -176,6 +177,11 @@ int main()
 	using Lambda = decltype(callback);
 	auto qp = sqlpp::query_task<Connection_pool, Query, Lambda> (pool, query, callback);
 	std::async(std::launch::async, qp);
+	pool(query);
+	auto s1 = dynamic_select(conn1);
+	auto s2 = dynamic_select(conn);
+	auto s3 = dynamic_select(pool);
+	//auto s4 = dynamic_select(query);
 
 	sqlpp::async(pool, query, callback2);
 

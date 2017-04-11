@@ -210,16 +210,16 @@ namespace sqlpp
 			}
 		}
 
-		template<typename Query>
-		void operator()(Query query)
-		{
-			query_task<connection_pool, Query, decltype([](){})>(*this, query, [](){})();
-		}
-
 		template<typename Query, typename Lambda>
 		void operator()(Query query, Lambda callback)
 		{
 			query_task<connection_pool, Query, Lambda>(*this, query, callback)();
+		}
+
+		template<typename Query>
+		void operator()(Query query)
+		{
+			operator()(query, [](){});
 		}
 	};
 
