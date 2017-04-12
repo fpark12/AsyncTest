@@ -187,7 +187,7 @@ int main()
   //sqlpp::async(c);
   pool(query);
   pool(query,callback);
-  conn1(query, callback);
+  //conn1(query, callback);
   conn1(query, callback2);
   conn1(query, callback3);
   conn1(query, callback4);
