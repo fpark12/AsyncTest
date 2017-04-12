@@ -119,11 +119,13 @@ namespace sqlpp
     return query_task<Connection_pool, Query, Lambda>(pool, query, lambda);
   }
 
+  /*
   template<typename Connection_pool, typename Query, typename Lambda>
   void async(Connection_pool& pool, Query& query, Lambda& callback)
   {
     std::async(std::launch::async, std::ref(pool), query, std::ref(callback));
   }
+  */
 }
 
 #endif

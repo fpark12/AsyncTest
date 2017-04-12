@@ -33,19 +33,20 @@
 namespace sqlpp
 {
   template <typename Connection_config, typename Connection_validator, typename Connection,
-    typename Connection_pool = connection_pool<Connection_config, Connection_validator, Connection>>
+    typename Connection_pool = connection_pool_t<Connection_config, Connection_validator, Connection>>
   struct pool_connection : public sqlpp::connection
   {
   private:
     std::unique_ptr<Connection> _impl;
-    Connection_pool* origin;
+    Connection_pool* origin_pool;
+    pool_connection* origin_conn;
 
   public:
-    pool_connection() : _impl(nullptr), origin(nullptr)
+    pool_connection() : _impl(nullptr), origin_pool(nullptr)
     {
     }
 
-    pool_connection(std::unique_ptr<Connection>& connection, Connection_pool* origin) : _impl(std::move(connection)), origin(origin)
+    pool_connection(std::unique_ptr<Connection>& connection, Connection_pool* origin_pool) : _impl(std::move(connection)), origin_pool(origin_pool), origin_conn(this)
     {
     }
 
@@ -53,19 +54,29 @@ namespace sqlpp
     {
       if (_impl.get())
       {
-        origin->free_connection(_impl);
+        // If pool_connection is borrowed from another pool_connection, give it back to the owner
+        // instead of releasing back to the pool
+        if (origin_conn && origin_conn != this)
+        {
+          *origin_conn = std::move(*this);
+        }
+        else
+        {
+          origin_pool->free_connection(_impl);
+        }
       }
     }
 
     pool_connection(const pool_connection&) = delete;
-    pool_connection(pool_connection&& other) : _impl(std::move(other._impl)), origin(other.origin)
+    pool_connection(pool_connection&& other) : _impl(std::move(other._impl)), origin_pool(other.origin_pool), origin_conn(other.origin_conn)
     {
     }
     pool_connection& operator=(const pool_connection&) = delete;
     pool_connection& operator=(pool_connection&& other)
     {
       _impl = std::move(other._impl);
-      origin = other.origin;
+      origin_pool = other.origin_pool;
+      origin_conn = other.origin_conn;
       return *this;
     }
 
@@ -91,12 +102,6 @@ namespace sqlpp
     auto prepare(const T& t) -> decltype(_impl->prepare(t))
     {
       return _impl->prepare(t);
-    }
-
-    template<typename Query, typename Lambda>
-    void operator()(Query query, Lambda callback)
-    {
-      query_task<Connection_pool, Query, Lambda>(*origin, query, callback)();
     }
   };
 }

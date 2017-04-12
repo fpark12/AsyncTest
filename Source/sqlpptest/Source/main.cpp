@@ -15,6 +15,7 @@
 #include "connection_pool.h"
 #include "thread_pool.h"
 #include "query_task.h"
+#include "sqlpp11/bind.h"
 
 #include "async_query_service.h"
 #include "SampleTable.h"
@@ -28,15 +29,15 @@ int main()
 	config->database = "sqlpp_mysql";
 	config->debug = true;
 
-	sqlpp::connection_pool<sqlpp::mysql::connection_config, sqlpp::connection_validator::automatic> pool(config, 4);
-	sqlpp::connection_pool<sqlpp::mysql::connection_config> pool1(config, 4);
-	sqlpp::connection_pool<sqlpp::mysql::connection_config, sqlpp::connection_validator::periodic> pool2(config, 4);
-	auto pool3 = sqlpp::make_connection_pool/*<sqlpp::mysql::connection_config, sqlpp::mysql::connection,
+	sqlpp::connection_pool_t<sqlpp::mysql::connection_config, sqlpp::connection_validator::automatic> pool(config, 4);
+	sqlpp::connection_pool_t<sqlpp::mysql::connection_config> pool1(config, 4);
+	sqlpp::connection_pool_t<sqlpp::mysql::connection_config, sqlpp::connection_validator::periodic> pool2(config, 4);
+	auto pool3 = sqlpp::connection_pool/*<sqlpp::mysql::connection_config, sqlpp::mysql::connection,
 		sqlpp::connection_validator::automatic>*/(config, 4);
-	auto pool4 = sqlpp::make_connection_pool(config, 4);
-	auto pool5 = sqlpp::make_connection_pool<sqlpp::mysql::connection_config, sqlpp::connection_validator::none>(config, 4);
+	auto pool4 = sqlpp::connection_pool(config, 4);
+	auto pool5 = sqlpp::connection_pool<sqlpp::mysql::connection_config, sqlpp::connection_validator::none>(config, 4);
 	// For connectors that are not up to date:
-	auto pool6 = sqlpp::make_connection_pool<sqlpp::mysql::connection_config, sqlpp::connection_validator::automatic, sqlpp::mysql::connection>(config, 4);
+	auto pool6 = sqlpp::connection_pool<sqlpp::mysql::connection_config, sqlpp::connection_validator::automatic, sqlpp::mysql::connection>(config, 4);
 
 	auto conn = sqlpp::mysql::connection(config);
 	auto conn1 = pool.get_connection();
@@ -116,7 +117,7 @@ int main()
 	/*
 	_io_service._impl.async_query([&]()
 	{
-		auto async_connection = connection_pool.get_connection();
+		auto async_connection = connection_pool_t.get_connection();
 		using result_type = decltype(async_connection(query));
 		std::packaged_task<result_type()> task([&]() { return async_connection(query); }); // wrap the function
 		std::future<decltype(async_connection(query))> future = task.get_future();
@@ -175,10 +176,16 @@ int main()
 	using Connection_pool = decltype(pool);
 	using Query = decltype(query);
 	using Lambda = decltype(callback);
-	auto qp = sqlpp::query_task<Connection_pool, Query, Lambda> (pool, query, callback);
-	std::async(std::launch::async, qp);
+  auto b = sqlpp::bind(pool, query, callback);
+  auto c = sqlpp::bind(std::move(conn), query, callback);
+  sqlpp::bind(pool, query, callback)();
+  sqlpp::bind(pool.get_connection(), query, callback)();
+
+  sqlpp::bind(std::move(conn), query, callback)();
+  std::async(std::launch::async, b);
+  sqlpp::async(b);
+  //sqlpp::async(c);
 	pool(query);
-  conn1(query, callback);
 	auto s1 = dynamic_select(conn);
 	auto s2 = dynamic_select(conn1);
 	//auto s3 = dynamic_select(pool);
@@ -187,7 +194,7 @@ int main()
 	sqlpp::async(pool, query, callback2);
 
 	thread_pool tpool(4);
-	auto task = sqlpp::make_query_task(pool, query, callback);
+	auto task = sqlpp::bind(pool, query, callback);
 	tpool.enqueue(task);
 
 	/*
