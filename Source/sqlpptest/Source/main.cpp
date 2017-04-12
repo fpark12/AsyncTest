@@ -185,13 +185,18 @@ int main()
   std::async(std::launch::async, b);
   sqlpp::async(b);
   //sqlpp::async(c);
-	pool(query);
+  pool(query);
+  pool(query,callback);
+  conn1(query, callback);
+  conn1(query, callback2);
+  conn1(query, callback3);
+  conn1(query, callback4);
 	auto s1 = dynamic_select(conn);
 	auto s2 = dynamic_select(conn1);
 	//auto s3 = dynamic_select(pool);
 	//auto s4 = dynamic_select(query);
 
-	sqlpp::async(pool, query, callback2);
+	  
 
 	thread_pool tpool(4);
 	auto task = sqlpp::bind(pool, query, callback);
