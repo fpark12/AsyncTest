@@ -40,6 +40,7 @@
 #include <sqlpp11/type_traits.h>
 #include <sqlpp11/exception.h>
 #include <sqlpp11/connection_pool.h>
+#include <sqlpp11/connection.h>
 
 namespace sqlpp
 {
@@ -119,9 +120,13 @@ namespace sqlpp
   class bind_t_ref
   {
   private:
+    using Pool_connection = decltype(std::declval<Database>().get_connection());
+    using Result = std::result_of_t<Pool_connection(Query)>;
+
     Database& db;
     Query query;
     Lambda callback;
+    std::promise<Result> promise;
 
   public:
     bind_t_ref(Database& d, Query& q, Lambda& cb) : db(d), query(q), callback(cb)
@@ -131,8 +136,6 @@ namespace sqlpp
     template<typename Database = Database, typename std::enable_if<!std::is_base_of<connection, Database>::value, int>::type = 0>
     void operator()()
     {
-      using Pool_connection = decltype((*((Database*)0)).get_connection());
-      using Result = decltype((*((Pool_connection*)0))(Query()));
       Pool_connection connection;
       try
       {
@@ -153,37 +156,51 @@ namespace sqlpp
       }
     }
 
+    auto get_future()
+    {
+      return promise.get_future();
+    }
+
 
   };
 
+  template<typename Database, typename Query,
+    typename std::enable_if<!std::is_base_of<connection, Database>::value, int>::type = 0>
+    auto bind2(Database& db, Query& query)
+  {
+    static auto lambda = [] {};
+
+    return sqlpp::bind_t_ref<Database, Query, decltype(lambda)>(std::move(db), query, lambda);
+  }
+
   template<typename Database, typename Query, typename Lambda,
     typename std::enable_if<std::is_base_of<connection, Database>::value, int>::type = 0>
-    bind_t_move<Database, Query, Lambda> bind(Database db, Query& query, Lambda& lambda)
+    bind_t_move<Database, Query, Lambda> bind2(Database db, Query& query, Lambda& lambda)
   {
     return sqlpp::bind_t_move<Database, Query, Lambda>(std::move(db), query, lambda);
   }
 
   template<typename Database, typename Query, typename Lambda,
     typename std::enable_if<!std::is_base_of<connection, Database>::value, int>::type = 0>
-    bind_t_ref<Database, Query, Lambda> bind(Database& db, Query& query, Lambda& lambda)
+    bind_t_ref<Database, Query, Lambda> bind2(Database& db, Query& query, Lambda& lambda)
   {
     return sqlpp::bind_t_ref<Database, Query, Lambda>(db, query, lambda);
   }
 
   template<typename Connection_pool, typename Query, typename Lambda>
-  void async(Connection_pool& pool, Query& query, Lambda& callback)
+  void _async(Connection_pool& pool, Query& query, Lambda& callback)
   {
     std::async(std::launch::async, std::ref(pool), query, std::ref(callback));
   }
 
   template<typename Bind, typename std::enable_if<std::is_copy_constructible<Bind>::value, int>::type = 0>
-  void async(Bind& bind)
+  void _async(Bind& bind)
   {
     std::async(std::launch::async, std::move(bind));
   }
 
   template<typename Bind, typename std::enable_if<!std::is_copy_constructible<Bind>::value, int>::type = 0>
-  void async(Bind& bind)
+  void _async(Bind& bind)
   {
     static_assert(false, "Only copy constructible bindings can be executed asynchronously.");
   }
