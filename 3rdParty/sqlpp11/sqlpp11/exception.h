@@ -31,8 +31,10 @@
 
 namespace sqlpp
 {
-  class exception : public std::system_error
+  class exception : public std::runtime_error
   {
+  private:
+    int code;
   public:
     enum
     {
@@ -43,41 +45,41 @@ namespace sqlpp
       query_error
     };
 
-    exception() : std::system_error(sqlpp::exception::ok, std::generic_category())
+    exception() : std::runtime_error("No error"), code(sqlpp::exception::unknown)
     {
     }
-    exception(int code) : std::system_error(code, std::generic_category())
+    exception(int code) : std::runtime_error("No error"), code(code)
     {
     }
-    exception(int code, const std::string& what_arg) : std::system_error(code, std::generic_category(), what_arg)
+    exception(int code, const std::string& what_arg) : std::runtime_error(what_arg), code(code)
     {
     }
-    exception(int code, const char* what_arg) : std::system_error(code, std::generic_category(), what_arg)
+    exception(int code, const char* what_arg) : std::runtime_error(what_arg), code(code)
     {
     }
-    exception(const std::string& what_arg) : std::system_error(sqlpp::exception::unknown, std::generic_category(), what_arg)
+    exception(const std::string& what_arg) : std::runtime_error(what_arg), code(sqlpp::exception::unknown)
     {
     }
-    exception(const char* what_arg) : std::system_error(sqlpp::exception::unknown, std::generic_category(), what_arg)
+    exception(const char* what_arg) : std::runtime_error(what_arg), code(sqlpp::exception::unknown)
     {
     }
-    exception(const exception& other) : std::system_error(other)
+    exception(const exception& other) : std::runtime_error(other), code(other.code)
     {
     }
 
     operator bool() const
     {
-      return code().value() != 0;
+      return code != 0;
     }
 
     bool operator!() const
     {
-      return code().value() == 0;
+      return code == 0;
     }
 
     bool operator==(const exception& other) const
     {
-      return code().value() == other.code().value();
+      return code == other.code;
     }
 
     bool operator!=(const exception& other) const
