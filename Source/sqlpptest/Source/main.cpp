@@ -192,16 +192,16 @@ resumable_function test2()
   auto& pool = *connection_pool.get();
   auto query = select(all_of(users)).from(users).unconditionally();
 
-  auto callback = [&](auto& task)
+  auto callback = [&](auto& future)
   {
     std::lock_guard<std::mutex> lock(coro_mutex);
     std::cerr << "Callback, thread # " << thread_id() << std::endl;
 
     try
     {
-      auto connection = task.get_connection();
+      auto& connection = future.get_connection();
 
-      for(const auto& row : task.get_result())
+      for(const auto& row : future.get_result())
       {
         if (row.AccountName.is_null())
           std::cerr << "AccountName is null" << std::endl;
@@ -232,7 +232,7 @@ resumable_function test2()
   {
     std::lock_guard<std::mutex> lock(coro_mutex);
     std::cerr << "Continuation, thread # " << thread_id() << std::endl;
-    auto conn = f2.get_connection();
+    auto& conn = f2.get_connection();
 
     for (const auto& row : f2.get_result())
     {
