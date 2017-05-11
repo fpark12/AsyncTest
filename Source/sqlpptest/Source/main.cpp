@@ -218,7 +218,7 @@ resumable_function test2()
   // sqlpp::async allocates task state on heap and enqueues immediately.
   sqlpp::async(pool, query); // discard future
   sqlpp::async(pool, query, callback); // discard future
-  auto f0 = sqlpp::async(pool, query, callback);
+  sqlpp::async(pool, query, callback);
 
   //*
   // sqlpp::deferred allocates task state on heap without enqueuing.
