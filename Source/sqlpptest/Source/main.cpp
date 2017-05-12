@@ -222,7 +222,7 @@ resumable_function test2()
 
   //*
   // sqlpp::deferred allocates task state on heap without enqueuing.
-  auto f1 = sqlpp::deferred(pool, query, callback);
+  auto f1 = sqlpp::deferred(pool, query);
   auto f2 = sqlpp::deferred(pool, query);
   // let co_await enqueue the task
   co_await f1;
